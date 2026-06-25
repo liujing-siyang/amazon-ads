@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Amazon Ads Optimization Report - B0GXZQXFM4</title>
+<style>
+body { font-family: Arial, sans-serif; margin: 0; color: #1f2933; background: #f6f7f9; }
+header { background: #ffffff; border-bottom: 1px solid #d9dee5; padding: 20px 28px; }
+main { padding: 20px 28px; }
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin: 16px 0; }
+.kpi, section { background: #fff; border: 1px solid #d9dee5; border-radius: 6px; padding: 14px; }
+.kpi strong { display:block; font-size: 20px; margin-top: 4px; }
+.controls { display:flex; flex-wrap:wrap; gap:10px; margin: 12px 0; }
+select, input { padding: 7px 9px; border: 1px solid #bac3cf; border-radius: 4px; }
+table { width:100%; border-collapse: collapse; background:#fff; font-size: 13px; }
+th, td { border-bottom:1px solid #e3e7ed; padding: 8px; vertical-align: top; text-align:left; }
+th { position: sticky; top:0; background:#eef2f6; z-index:1; }
+.pill { display:inline-block; padding:4px 7px; border:1px solid #c8d1dc; border-radius:999px; margin:3px; background:#fff; font-size:12px; }
+.hidden { display:none; }
+</style>
+</head>
+<body>
+<header><h1>Amazon Ads Optimization Report</h1><div>ASIN: <strong>B0GXZQXFM4</strong></div></header>
+<main>
+<div class="kpis">
+  <div class="kpi">Spend<strong>AUD 141.74</strong></div>
+  <div class="kpi">Sales<strong>AUD 2,207.30</strong></div>
+  <div class="kpi">Orders<strong>66</strong></div>
+  <div class="kpi">ACOS<strong>6.4%</strong></div>
+</div>
+<section><h2>Rule Profile</h2><span class='pill'>name: default</span><span class='pill'>target_acos: 0.2</span><span class='pill'>wasted_click_threshold: 8</span><span class='pill'>wasted_spend_threshold: 5.0</span><span class='pill'>min_orders_to_scale: 2</span><span class='pill'>scale_acos_headroom: 0.75</span><span class='pill'>ranking_acos_tolerance: 2.0</span><span class='pill'>lookback_days: 0</span><span class='pill'>keyword_gap_min_token_length: 4</span></section>
+<section><h2>Sources</h2><ul><li>amazon_ads_csv: data\imports\2026-05-01——06-25_B0GXZQXFM4_自动.csv</li><li>amazon_ads_csv: data\imports\2026-05-01——06-25_B0GXZQXFM4_手动.csv</li><li>listing_snapshot: https://www.amazon.com.au/dp/B0GXZQXFM4</li></ul><p>Evidence validation: {&#x27;ok&#x27;: True, &#x27;total_evidence_rows&#x27;: 0, &#x27;missing_sources&#x27;: 0}</p></section>
+<section><h2>Recommendations</h2>
+<div class="controls">
+<select id="filterAction"><option value="">All actions</option></select>
+<select id="filterPriority"><option value="">All priorities</option></select>
+<select id="filterAdmode"><option value="">All ad modes</option></select>
+<select id="filterThreshold"><option value="">All ACOS states</option></select>
+<select id="filterEvidence"><option value="">All evidence</option><option value="amazon">Amazon only</option><option value="sellersprite">SellerSprite</option></select>
+<input id="searchBox" placeholder="Search term">
+</div>
+<table id="recommendations-table"><thead><tr><th>Priority</th><th>Action</th><th>Search Term</th><th>Keyword</th><th>Ad Mode</th><th>Spend</th><th>Clicks</th><th>Orders</th><th>Sales</th><th>ACOS</th><th>State</th><th>SellerSprite</th><th>Listing Gap</th><th>Reason</th><th>Next Step</th></tr></thead><tbody>
+        <tr data-action="increase_bid_or_budget" data-priority="medium" data-admode="manual" data-threshold="below_target" data-evidence="amazon">
+          <td>medium</td><td>increase_bid_or_budget</td><td>pillow speaker</td>
+          <td>pillow speaker</td><td>manual</td><td>AUD 20.91</td>
+          <td>39</td><td>13</td><td>AUD 413.87</td><td>5.1%</td>
+          <td>below_target</td><td></td><td></td>
+          <td>Term has enough orders and ACOS headroom under the configured scaling threshold.</td><td>Increase bid or budget cautiously and monitor 7-14 day ACOS movement.</td>
+        </tr>
+        <tr data-action="increase_bid_or_budget" data-priority="medium" data-admode="manual" data-threshold="below_target" data-evidence="amazon">
+          <td>medium</td><td>increase_bid_or_budget</td><td>pillow speaker</td>
+          <td>keyword-group=&quot;Keywords related to your product category&quot;</td><td>manual</td><td>AUD 24.21</td>
+          <td>41</td><td>9</td><td>AUD 275.91</td><td>8.8%</td>
+          <td>below_target</td><td></td><td></td>
+          <td>Term has enough orders and ACOS headroom under the configured scaling threshold.</td><td>Increase bid or budget cautiously and monitor 7-14 day ACOS movement.</td>
+        </tr>
+        <tr data-action="increase_bid_or_budget" data-priority="medium" data-admode="manual" data-threshold="below_target" data-evidence="amazon">
+          <td>medium</td><td>increase_bid_or_budget</td><td>under pillow speaker bluetooth</td>
+          <td>under pillow speaker bluetooth</td><td>manual</td><td>AUD 27.75</td>
+          <td>42</td><td>6</td><td>AUD 269.91</td><td>10.3%</td>
+          <td>below_target</td><td></td><td></td>
+          <td>Term has enough orders and ACOS headroom under the configured scaling threshold.</td><td>Increase bid or budget cautiously and monitor 7-14 day ACOS movement.</td>
+        </tr>
+        <tr data-action="increase_bid_or_budget" data-priority="medium" data-admode="manual" data-threshold="below_target" data-evidence="amazon">
+          <td>medium</td><td>increase_bid_or_budget</td><td>sleep speaker under pillow</td>
+          <td>sleep speaker under pillow</td><td>manual</td><td>AUD 8.73</td>
+          <td>13</td><td>7</td><td>AUD 263.92</td><td>3.3%</td>
+          <td>below_target</td><td></td><td></td>
+          <td>Term has enough orders and ACOS headroom under the configured scaling threshold.</td><td>Increase bid or budget cautiously and monitor 7-14 day ACOS movement.</td>
+        </tr>
+        <tr data-action="increase_bid_or_budget" data-priority="medium" data-admode="manual" data-threshold="below_target" data-evidence="amazon">
+          <td>medium</td><td>increase_bid_or_budget</td><td>under pillow speaker</td>
+          <td>keyword-group=&quot;Keywords related to your product category&quot;</td><td>manual</td><td>AUD 9.01</td>
+          <td>15</td><td>6</td><td>AUD 179.94</td><td>5.0%</td>
+          <td>below_target</td><td></td><td></td>
+          <td>Term has enough orders and ACOS headroom under the configured scaling threshold.</td><td>Increase bid or budget cautiously and monitor 7-14 day ACOS movement.</td>
+        </tr>
+        <tr data-action="increase_bid_or_budget" data-priority="medium" data-admode="manual" data-threshold="below_target" data-evidence="amazon">
+          <td>medium</td><td>increase_bid_or_budget</td><td>dreamwave pillow speaker</td>
+          <td>pillow speaker</td><td>manual</td><td>AUD 8.03</td>
+          <td>13</td><td>5</td><td>AUD 155.95</td><td>5.1%</td>
+          <td>below_target</td><td></td><td></td>
+          <td>Term has enough orders and ACOS headroom under the configured scaling threshold.</td><td>Increase bid or budget cautiously and monitor 7-14 day ACOS movement.</td>
+        </tr>
+        <tr data-action="listing_keyword_gap" data-priority="medium" data-admode="manual" data-threshold="below_target" data-evidence="amazon">
+          <td>medium</td><td>listing_keyword_gap</td><td>dreamwave pillow speaker</td>
+          <td>pillow speaker</td><td>manual</td><td>AUD 8.03</td>
+          <td>13</td><td>5</td><td>AUD 155.95</td><td>5.1%</td>
+          <td>below_target</td><td></td><td>dreamwave</td>
+          <td>Converted search term contains tokens missing from the latest scraped title/bullets: dreamwave</td><td>Review title, bullets, or backend search terms before increasing ad spend.</td>
+        </tr>
+        <tr data-action="increase_bid_or_budget" data-priority="medium" data-admode="manual" data-threshold="below_target" data-evidence="amazon">
+          <td>medium</td><td>increase_bid_or_budget</td><td>sleep speaker</td>
+          <td>sleep speaker</td><td>manual</td><td>AUD 5.57</td>
+          <td>9</td><td>3</td><td>AUD 89.97</td><td>6.2%</td>
+          <td>below_target</td><td></td><td></td>
+          <td>Term has enough orders and ACOS headroom under the configured scaling threshold.</td><td>Increase bid or budget cautiously and monitor 7-14 day ACOS movement.</td>
+        </tr>
+        <tr data-action="promote_to_exact" data-priority="medium" data-admode="automatic" data-threshold="below_target" data-evidence="amazon">
+          <td>medium</td><td>promote_to_exact</td><td>pillow speaker</td>
+          <td>close-match</td><td>automatic</td><td>AUD 1.72</td>
+          <td>3</td><td>1</td><td>AUD 35.99</td><td>4.8%</td>
+          <td>below_target</td><td></td><td></td>
+          <td>Search term converted below target ACOS 20.0%; add as manual exact/phrase and monitor bid.</td><td>Add as manual exact keyword; optionally keep phrase for expansion.</td>
+        </tr>
+        <tr data-action="promote_to_exact" data-priority="medium" data-admode="automatic" data-threshold="below_target" data-evidence="amazon">
+          <td>medium</td><td>promote_to_exact</td><td>bluetooth pillow speaker</td>
+          <td>close-match</td><td>automatic</td><td>AUD 0.58</td>
+          <td>1</td><td>1</td><td>AUD 35.99</td><td>1.6%</td>
+          <td>below_target</td><td></td><td></td>
+          <td>Search term converted below target ACOS 20.0%; add as manual exact/phrase and monitor bid.</td><td>Add as manual exact keyword; optionally keep phrase for expansion.</td>
+        </tr>
+        <tr data-action="listing_keyword_gap" data-priority="medium" data-admode="manual" data-threshold="below_target" data-evidence="amazon">
+          <td>medium</td><td>listing_keyword_gap</td><td>somnifye pillow speaker for sleeping</td>
+          <td>pillow speaker</td><td>manual</td><td>AUD 0.56</td>
+          <td>1</td><td>1</td><td>AUD 35.99</td><td>1.6%</td>
+          <td>below_target</td><td></td><td>somnifye</td>
+          <td>Converted search term contains tokens missing from the latest scraped title/bullets: somnifye</td><td>Review title, bullets, or backend search terms before increasing ad spend.</td>
+        </tr>
+        <tr data-action="promote_to_exact" data-priority="medium" data-admode="automatic" data-threshold="below_target" data-evidence="amazon">
+          <td>medium</td><td>promote_to_exact</td><td>speaker pillow</td>
+          <td>close-match</td><td>automatic</td><td>AUD 0.55</td>
+          <td>1</td><td>1</td><td>AUD 35.99</td><td>1.5%</td>
+          <td>below_target</td><td></td><td></td>
+          <td>Search term converted below target ACOS 20.0%; add as manual exact/phrase and monitor bid.</td><td>Add as manual exact keyword; optionally keep phrase for expansion.</td>
+        </tr>
+        <tr data-action="promote_to_exact" data-priority="medium" data-admode="automatic" data-threshold="below_target" data-evidence="amazon">
+          <td>medium</td><td>promote_to_exact</td><td>pillow sleeper speaker</td>
+          <td>close-match</td><td>automatic</td><td>AUD 0.54</td>
+          <td>1</td><td>1</td><td>AUD 35.99</td><td>1.5%</td>
+          <td>below_target</td><td></td><td></td>
+          <td>Search term converted below target ACOS 20.0%; add as manual exact/phrase and monitor bid.</td><td>Add as manual exact keyword; optionally keep phrase for expansion.</td>
+        </tr>
+        <tr data-action="listing_keyword_gap" data-priority="medium" data-admode="manual" data-threshold="below_target" data-evidence="amazon">
+          <td>medium</td><td>listing_keyword_gap</td><td>hyundai pillow speaker</td>
+          <td>pillow speaker</td><td>manual</td><td>AUD 0.37</td>
+          <td>1</td><td>1</td><td>AUD 35.99</td><td>1.0%</td>
+          <td>below_target</td><td></td><td>hyundai</td>
+          <td>Converted search term contains tokens missing from the latest scraped title/bullets: hyundai</td><td>Review title, bullets, or backend search terms before increasing ad spend.</td>
+        </tr>
+        <tr data-action="promote_to_exact" data-priority="medium" data-admode="automatic" data-threshold="below_target" data-evidence="amazon">
+          <td>medium</td><td>promote_to_exact</td><td>luvryon pillow speaker</td>
+          <td>close-match</td><td>automatic</td><td>AUD 0.02</td>
+          <td>1</td><td>1</td><td>AUD 35.99</td><td>0.1%</td>
+          <td>below_target</td><td></td><td></td>
+          <td>Search term converted below target ACOS 20.0%; add as manual exact/phrase and monitor bid.</td><td>Add as manual exact keyword; optionally keep phrase for expansion.</td>
+        </tr>
+        <tr data-action="promote_to_exact" data-priority="medium" data-admode="automatic" data-threshold="below_target" data-evidence="amazon">
+          <td>medium</td><td>promote_to_exact</td><td>under pillow speaker bluetooth</td>
+          <td>close-match</td><td>automatic</td><td>AUD 0.51</td>
+          <td>1</td><td>1</td><td>AUD 29.99</td><td>1.7%</td>
+          <td>below_target</td><td></td><td></td>
+          <td>Search term converted below target ACOS 20.0%; add as manual exact/phrase and monitor bid.</td><td>Add as manual exact keyword; optionally keep phrase for expansion.</td>
+        </tr>
+        <tr data-action="promote_to_exact" data-priority="medium" data-admode="automatic" data-threshold="below_target" data-evidence="amazon">
+          <td>medium</td><td>promote_to_exact</td><td>portable bluetooth speakers under pillow</td>
+          <td>loose-match</td><td>automatic</td><td>AUD 0.49</td>
+          <td>1</td><td>1</td><td>AUD 29.99</td><td>1.6%</td>
+          <td>below_target</td><td></td><td></td>
+          <td>Search term converted below target ACOS 20.0%; add as manual exact/phrase and monitor bid.</td><td>Add as manual exact keyword; optionally keep phrase for expansion.</td>
+        </tr>
+        <tr data-action="listing_keyword_gap" data-priority="medium" data-admode="automatic" data-threshold="below_target" data-evidence="amazon">
+          <td>medium</td><td>listing_keyword_gap</td><td>portable bluetooth speakers under pillow</td>
+          <td>loose-match</td><td>automatic</td><td>AUD 0.49</td>
+          <td>1</td><td>1</td><td>AUD 29.99</td><td>1.6%</td>
+          <td>below_target</td><td></td><td>portable</td>
+          <td>Converted search term contains tokens missing from the latest scraped title/bullets: portable</td><td>Review title, bullets, or backend search terms before increasing ad spend.</td>
+        </tr></tbody></table>
+</section>
+</main>
+<script>
+const table = document.getElementById('recommendations-table');
+const rows = Array.from(table.querySelectorAll('tbody tr'));
+function fillSelect(id, attr) {
+  const select = document.getElementById(id);
+  [...new Set(rows.map(r => r.dataset[attr]).filter(Boolean))].sort().forEach(v => { const o=document.createElement('option'); o.value=v; o.textContent=v; select.appendChild(o); });
+}
+fillSelect('filterAction','action'); fillSelect('filterPriority','priority'); fillSelect('filterAdmode','admode'); fillSelect('filterThreshold','threshold');
+function applyFilters() {
+  const f = { action: filterAction.value, priority: filterPriority.value, admode: filterAdmode.value, threshold: filterThreshold.value, evidence: filterEvidence.value };
+  const q = searchBox.value.toLowerCase();
+  rows.forEach(r => {
+    const ok = (!f.action || r.dataset.action === f.action) && (!f.priority || r.dataset.priority === f.priority) && (!f.admode || r.dataset.admode === f.admode) && (!f.threshold || r.dataset.threshold === f.threshold) && (!f.evidence || r.dataset.evidence === f.evidence) && (!q || r.textContent.toLowerCase().includes(q));
+    r.classList.toggle('hidden', !ok);
+  });
+}
+document.querySelectorAll('select,input').forEach(el => el.addEventListener('input', applyFilters));
+</script>
+</body></html>

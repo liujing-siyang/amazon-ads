@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Amazon Ads Config Builder</title>
+<style>
+body{font-family:Arial,sans-serif;margin:0;background:#f6f7f9;color:#1f2933}header{padding:20px 28px;background:#fff;border-bottom:1px solid #d9dee5}main{padding:20px 28px;max-width:980px}section{background:#fff;border:1px solid #d9dee5;border-radius:6px;padding:16px;margin-bottom:14px}label{display:block;margin:10px 0 4px}input,textarea{width:100%;box-sizing:border-box;padding:8px;border:1px solid #bac3cf;border-radius:4px}button{padding:9px 12px;border:0;border-radius:4px;background:#1f6feb;color:#fff;cursor:pointer}textarea{min-height:120px;font-family:Consolas,monospace}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}</style>
+</head>
+<body>
+<header><h1>Amazon Ads Config Builder</h1><p>生成 analysis-config.json，用于可配置广告分析。</p></header>
+<main>
+<section>
+<h2>ASIN 与数据</h2>
+<div class="grid">
+<div><label>ASIN</label><input id="asin" value="B0GXZQXFM4"></div>
+<div><label>Database path</label><input id="db" value="data/amazon_ads.sqlite"></div>
+<div><label>Amazon URL</label><input id="amazon_url" value="https://www.amazon.com.au/dp/B0GXZQXFM4"></div>
+<div><label>HTML output</label><input id="html_output" value="reports/B0GXZQXFM4.html"></div>
+</div>
+</section>
+<section>
+<h2>Rule Profile</h2>
+<div class="grid">
+<div><label>target_acos</label><input id="target_acos" type="number" step="0.01" value="0.20"></div>
+<div><label>wasted_click_threshold</label><input id="wasted_click_threshold" type="number" value="20"></div>
+<div><label>wasted_spend_threshold</label><input id="wasted_spend_threshold" type="number" step="0.1" value="5"></div>
+<div><label>min_orders_to_scale</label><input id="min_orders_to_scale" type="number" value="2"></div>
+<div><label>scale_acos_headroom</label><input id="scale_acos_headroom" type="number" step="0.05" value="0.75"></div>
+<div><label>ranking_acos_tolerance</label><input id="ranking_acos_tolerance" type="number" step="0.1" value="2.0"></div>
+<div><label>lookback_days</label><input id="lookback_days" type="number" value="0"></div>
+<div><label>keyword_gap_min_token_length</label><input id="keyword_gap_min_token_length" type="number" value="4"></div>
+</div>
+
+</section>
+<section>
+<h2>Margin Model</h2>
+<div class="grid">
+<div><label>selling_price</label><input id="selling_price" type="number" step="0.01" value="39.99"></div>
+<div><label>product_cost</label><input id="product_cost" type="number" step="0.01" value="0"></div>
+<div><label>fba_fee</label><input id="fba_fee" type="number" step="0.01" value="0"></div>
+<div><label>referral_fee</label><input id="referral_fee" type="number" step="0.01" value="0"></div>
+<div><label>shipping_packaging</label><input id="shipping_packaging" type="number" step="0.01" value="0"></div>
+<div><label>return_allowance</label><input id="return_allowance" type="number" step="0.01" value="0"></div>
+<div><label>other_cost</label><input id="other_cost" type="number" step="0.01" value="0"></div>
+<div><label>desired_profit_buffer</label><input id="desired_profit_buffer" type="number" step="0.01" value="0.10"></div>
+</div>
+
+</section>
+<section>
+<h2>External Keyword Tool Mapping</h2>
+<p>把 SellerSprite Excel 的列名映射到标准字段。</p>
+<textarea id="external_keyword_mapping">{"keyword":"Keyword","search_volume":"Search Volume","estimated_cpc":"CPC","organic_rank":"Organic Rank","sponsored_rank":"Sponsored Rank","competition":"Competition","competitor_asin":"Competitor ASIN","competitor_brand":"Competitor Brand","notes":"Notes"}</textarea>
+</section>
+<section>
+<button id="download">Download analysis-config.json</button>
+<textarea id="preview" readonly></textarea>
+</section>
+</main>
+<script>
+function config(){const margin_model={selling_price:Number(selling_price.value),product_cost:Number(product_cost.value),fba_fee:Number(fba_fee.value),referral_fee:Number(referral_fee.value),shipping_packaging:Number(shipping_packaging.value),return_allowance:Number(return_allowance.value),other_cost:Number(other_cost.value),desired_profit_buffer:Number(desired_profit_buffer.value)};return {asin:asin.value.trim(),db:db.value.trim(),amazon_url:amazon_url.value.trim(),html_output:html_output.value.trim(),language:'zh-CN',target_acos:Number(target_acos.value),rule_profile:{target_acos:Number(target_acos.value),wasted_click_threshold:Number(wasted_click_threshold.value),wasted_spend_threshold:Number(wasted_spend_threshold.value),min_orders_to_scale:Number(min_orders_to_scale.value),scale_acos_headroom:Number(scale_acos_headroom.value),ranking_acos_tolerance:Number(ranking_acos_tolerance.value),lookback_days:Number(lookback_days.value),keyword_gap_min_token_length:Number(keyword_gap_min_token_length.value),margin_model},dynamic_thresholds:{allowed_test_spend:'average_order_value * target_acos',estimated_test_clicks:'allowed_test_spend / avg_cpc'},intent_acos_tolerances:{profit:1.0,ranking:Number(ranking_acos_tolerance.value),exploration:0.5,defense:1.2,competitor:0.8},listing_generation:{enabled:true,language:'en'},sorftime_sources:{enabled:true,site:'AU'},external_keyword_mapping:JSON.parse(external_keyword_mapping.value||'{}'),sellersprite_mapping:JSON.parse(external_keyword_mapping.value||'{}')}}
+function refresh(){preview.value=JSON.stringify(config(),null,2)}
+document.querySelectorAll('input,textarea').forEach(el=>el.addEventListener('input',refresh));
+download.addEventListener('click',()=>{refresh();const blob=new Blob([preview.value],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='analysis-config.json';a.click();URL.revokeObjectURL(a.href)});
+refresh();
+</script>
+</body>
+</html>

@@ -1,0 +1,3 @@
+﻿display_name: Amazon Ads Optimizer
+short_description: Optimize Amazon AU ads with sourced evidence.
+default_prompt: Analyze this ASIN advertising data and produce evidence-backed optimization recommendations.
