@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any
 
 DEFAULT_DB = Path(__file__).resolve().parents[4] / "data" / "amazon_ads.sqlite"
+ACTIVE_IMPORT_SQL = "import_id in (select id from ad_report_imports where coalesce(is_active, 1)=1)"
 
 DEFAULT_RULE_PROFILE: dict[str, Any] = {
     "name": "default",
@@ -174,7 +175,7 @@ def _recommendations(conn: sqlite3.Connection, asin: str, profile: dict[str, Any
                sum(impressions) impressions, sum(clicks) clicks, sum(spend) spend,
                sum(orders) orders, sum(sales) sales
         from search_term_performance
-        where asin = ?
+        where asin = ? and import_id in (select id from ad_report_imports where coalesce(is_active, 1)=1)
         group by lower(search_term), keyword, ad_mode
         order by sales desc, spend desc
         """,
@@ -264,7 +265,7 @@ def _recommendations(conn: sqlite3.Connection, asin: str, profile: dict[str, Any
 
 def _sources(conn: sqlite3.Connection, asin: str) -> list[dict[str, Any]]:
     sources: list[dict[str, Any]] = []
-    for row in conn.execute("select source_file, report_start, report_end, ad_mode, rows_imported from ad_report_imports where asin = ? order by id", (asin,)):
+    for row in conn.execute("select source_file, report_start, report_end, ad_mode, rows_imported from ad_report_imports where asin = ? and coalesce(is_active, 1)=1 order by id", (asin,)):
         sources.append({"type": "amazon_ads_csv", "label": row[0], "report_start": row[1], "report_end": row[2], "ad_mode": row[3], "rows": row[4]})
     for row in conn.execute("select product_url, captured_at, extraction_status from listing_snapshots where asin = ? order by id desc limit 1", (asin,)):
         sources.append({"type": "listing_snapshot", "label": row[0], "captured_at": row[1], "status": row[2]})
@@ -309,7 +310,7 @@ def _ad_structure_plan(recommendations: list[dict[str, Any]]) -> list[dict[str, 
 
 
 def _trend_analysis(conn: sqlite3.Connection, asin: str) -> dict[str, Any]:
-    periods = list(conn.execute("select report_start, report_end, sum(spend), sum(sales), sum(orders) from search_term_performance where asin=? group by report_start, report_end order by report_start", (asin,)))
+    periods = list(conn.execute("select report_start, report_end, sum(spend), sum(sales), sum(orders) from search_term_performance where asin=? and import_id in (select id from ad_report_imports where coalesce(is_active, 1)=1) group by report_start, report_end order by report_start", (asin,)))
     if len(periods) < 2:
         return {"message_zh": "\u5f53\u524d\u5e7f\u544a\u6587\u4ef6\u53ea\u652f\u6301\u5468\u671f\u7ea7\u5bf9\u6bd4\uff0c\u4e0d\u80fd\u751f\u6210\u771f\u5b9e7/14/30\u5929\u8d8b\u52bf\u3002"}
     return {"message_zh": "\u5df2\u68c0\u6d4b\u5230\u591a\u4e2a\u5e7f\u544a\u5468\u671f\uff0c\u53ef\u8fdb\u884c\u5468\u671f\u7ea7\u8d8b\u52bf\u5bf9\u6bd4\u3002", "periods": [tuple(p) for p in periods]}
@@ -348,15 +349,31 @@ def _listing_optimization(conn: sqlite3.Connection, asin: str, recommendations: 
     missing = [t for t in tokens if t not in text]
     score = 50 + min(25, len(covered) * 5) + (10 if (listing.get("rating") or 0) >= 4.3 else 0) + (10 if (listing.get("review_count") or 0) >= 100 else 0) + (5 if listing.get("title") else 0)
     score = min(100, score)
-    title_terms = "Portable " if "portable" in missing else ""
-    title = f"Bluetooth Pillow Speaker for Sleeping - {title_terms}Ultra Thin Under Pillow Speaker with White Noise, Sleep Timer, USB-C, for Side Sleepers, ASMR, Podcasts and Audiobooks"
-    bullets = [
-        "Ultra-thin comfort for side sleepers: the flat under pillow speaker fits beneath your pillow for private bedtime audio without earbuds or headbands.",
-        "Bluetooth sleep audio plus built-in white noise: stream podcasts, ASMR and audiobooks, or switch to calming nature sounds for a steady sleep routine.",
-        "Sleep timer and all-night battery: choose 30, 60 or 90 minutes and enjoy up to 10 hours of playback with convenient USB-C charging.",
-        "Portable bedtime speaker for home and travel: lightweight design works in bedrooms, hotels and guest rooms without disturbing your routine.",
-        "Shared-bed friendly and hygienic: keeps audio close under the pillow while avoiding sweaty headbands and uncomfortable in-ear headphones.",
-    ]
+    product_signal = " ".join([listing["title"], *listing["bullets"], *converting_terms]).lower()
+    is_book_nook = any(signal in product_signal for signal in ["book nook", "miniature", "3d puzzle", "wooden puzzle", "japanese", "showa", "alley"])
+    if is_book_nook:
+        title = "Book Nook Kit - Japanese Showa Street DIY Miniature House with LED Light, Dust Cover, 3D Wooden Puzzle Alley Waiting for the Cat, Craft Kit for Adults and Teens"
+        bullets = [
+            "Japanese alley atmosphere: recreate a nostalgic Showa street scene with izakaya details, cat figures and warm LED light for immersive bookshelf decor.",
+            "Rewarding DIY miniature build: 280 precision-cut wooden pieces create a hands-on 3D puzzle project for adults, teens, beginners and hobby crafters.",
+            "Dust cover included: protect the finished book nook from dust while keeping the tiny street, shop signs and sakura details clear on display.",
+            "Gift-ready craft kit: a thoughtful choice for Japan lovers, cat enthusiasts, miniature collectors and anyone who enjoys mindful screen-free making.",
+            "Designed for shelf display: the compact book nook alley fits between novels and adds a glowing decorative scene to libraries, desks and reading corners.",
+        ]
+        description = "Build a quiet Japanese street scene for your bookshelf with the Alley Waiting for the Cat book nook kit. The DIY miniature house combines laser-cut wooden pieces, warm LED lighting, a protective dust cover and detailed Showa-inspired storefronts to create a satisfying craft project and a display-ready bookshelf insert for adults and teens."
+        rationale_terms = "book nook / book nook japanese / japanese book nook / 3d puzzle"
+    else:
+        title_terms = "Portable " if "portable" in missing else ""
+        title = f"Bluetooth Pillow Speaker for Sleeping - {title_terms}Ultra Thin Under Pillow Speaker with White Noise, Sleep Timer, USB-C, for Side Sleepers, ASMR, Podcasts and Audiobooks"
+        bullets = [
+            "Ultra-thin comfort for side sleepers: the flat under pillow speaker fits beneath your pillow for private bedtime audio without earbuds or headbands.",
+            "Bluetooth sleep audio plus built-in white noise: stream podcasts, ASMR and audiobooks, or switch to calming nature sounds for a steady sleep routine.",
+            "Sleep timer and all-night battery: choose 30, 60 or 90 minutes and enjoy up to 10 hours of playback with convenient USB-C charging.",
+            "Portable bedtime speaker for home and travel: lightweight design works in bedrooms, hotels and guest rooms without disturbing your routine.",
+            "Shared-bed friendly and hygienic: keeps audio close under the pillow while avoiding sweaty headbands and uncomfortable in-ear headphones.",
+        ]
+        description = "Designed for side sleepers and quiet bedtime listening, this Bluetooth pillow speaker sits under your pillow to deliver podcasts, ASMR, audiobooks and soothing white noise without wearing earbuds. The ultra-thin body, sleep timer and USB-C rechargeable battery make it practical for nightly use at home or while travelling."
+        rationale_terms = "pillow speaker / under pillow speaker / sleep speaker"
     backend = []
     for term in converting_terms:
         if term not in backend and not any(b in term.lower() for b in ["dreamwave", "hyundai", "somnifye", "kinglucky", "lenovo", "radox"]):
@@ -364,7 +381,6 @@ def _listing_optimization(conn: sqlite3.Connection, asin: str, recommendations: 
     for token in missing:
         if token not in " ".join(backend).lower():
             backend.append(token)
-    description = "Designed for side sleepers and quiet bedtime listening, this Bluetooth pillow speaker sits under your pillow to deliver podcasts, ASMR, audiobooks and soothing white noise without wearing earbuds. The ultra-thin body, sleep timer and USB-C rechargeable battery make it practical for nightly use at home or while travelling."
     return {
         "score": score,
         "covered_tokens": covered,
@@ -374,7 +390,7 @@ def _listing_optimization(conn: sqlite3.Connection, asin: str, recommendations: 
         "bullets": bullets,
         "description": description,
         "backend_search_terms": backend[:20],
-        "rationale_zh": "\u4e2d\u6587\u89e3\u8bfb\uff1a\u6839\u636e\u5df2\u8f6c\u5316\u641c\u7d22\u8bcd\u63d0\u70bc pillow speaker / under pillow speaker / sleep speaker \u7b49\u4e3b\u8bcd\uff0c\u4f18\u5148\u8865\u8db3\u6807\u9898\u3001\u4e94\u70b9\u548c\u540e\u53f0\u8bcd\uff0c\u63d0\u9ad8Listing\u627f\u63a5\u6548\u7387\u3002",
+        "rationale_zh": f"\u4e2d\u6587\u89e3\u8bfb\uff1a\u6839\u636e\u5df2\u8f6c\u5316\u641c\u7d22\u8bcd\u63d0\u70bc {rationale_terms} \u7b49\u4e3b\u8bcd\uff0c\u4f18\u5148\u8865\u8db3\u6807\u9898\u3001\u4e94\u70b9\u548c\u540e\u53f0\u8bcd\uff0c\u63d0\u9ad8Listing\u627f\u63a5\u6548\u7387\u3002",
     }
 
 
@@ -383,7 +399,7 @@ def _sorftime_context(conn: sqlite3.Connection, asin: str) -> dict[str, Any]:
         """
         select metric_type, query_date, payload_json
         from sorftime_snapshots
-        where asin=?
+        where asin=? and coalesce(is_active, 1)=1
         order by query_date desc, id desc
         """,
         (asin,),
@@ -417,7 +433,8 @@ def analyze(
             """
             select sum(impressions) impressions, sum(clicks) clicks, sum(spend) spend,
                    sum(orders) orders, sum(sales) sales
-            from search_term_performance where asin = ?
+            from search_term_performance
+            where asin = ? and import_id in (select id from ad_report_imports where coalesce(is_active, 1)=1)
             """,
             (asin,),
         ).fetchone()

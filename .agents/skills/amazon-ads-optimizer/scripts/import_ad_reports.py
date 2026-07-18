@@ -53,6 +53,8 @@ create table if not exists listing_snapshots (
 
 create table if not exists ad_report_imports (
     id integer primary key autoincrement,
+    source_id integer,
+    scope_id text,
     source_file text not null,
     file_checksum text not null unique,
     asin text not null,
@@ -61,8 +63,12 @@ create table if not exists ad_report_imports (
     ad_mode text not null check (ad_mode in ('manual', 'automatic')),
     imported_at text not null,
     rows_imported integer not null,
+    is_active integer not null default 1,
+    supersedes_import_id integer,
     metadata_json text,
-    foreign key (asin) references asins(asin)
+    foreign key (asin) references asins(asin),
+    foreign key (source_id) references evidence_sources(id),
+    foreign key (supersedes_import_id) references ad_report_imports(id)
 );
 
 create table if not exists search_term_performance (
@@ -149,6 +155,7 @@ create table if not exists rule_profile_values (
 create table if not exists analysis_runs (
     id integer primary key autoincrement,
     asin text not null,
+    scope_id text,
     profile_name text not null,
     generated_at text not null,
     config_json text not null,
@@ -175,13 +182,79 @@ create table if not exists recommendation_feedback (
 
 create table if not exists sorftime_snapshots (
     id integer primary key autoincrement,
+    source_id integer,
     asin text not null,
     marketplace text not null,
     source_type text not null,
     metric_type text not null,
     query_date text not null,
     payload_json text not null,
+    is_active integer not null default 1,
+    supersedes_snapshot_id integer,
     created_at text not null default current_timestamp
+);
+
+create table if not exists asin_scopes (
+    scope_id text primary key,
+    scope_type text not null check (scope_type in ('single', 'variant_group', 'parent')),
+    marketplace text not null default 'AU',
+    parent_asin text,
+    member_asins_json text not null,
+    shared_ad_group_id text,
+    created_at text not null default current_timestamp,
+    updated_at text not null default current_timestamp
+);
+
+create table if not exists evidence_sources (
+    id integer primary key autoincrement,
+    scope_id text,
+    asin text,
+    marketplace text not null default 'AU',
+    source_type text not null,
+    source_name text not null,
+    source_file text,
+    source_url text,
+    checksum text,
+    captured_at text not null,
+    version integer not null default 1,
+    is_active integer not null default 1,
+    supersedes_source_id integer,
+    metadata_json text,
+    created_at text not null default current_timestamp,
+    foreign key (scope_id) references asin_scopes(scope_id),
+    foreign key (supersedes_source_id) references evidence_sources(id)
+);
+
+create table if not exists data_corrections (
+    id integer primary key autoincrement,
+    source_id integer,
+    run_id integer,
+    scope_id text,
+    asin text,
+    table_name text,
+    record_id integer,
+    field_name text not null,
+    old_value_json text,
+    new_value_json text not null,
+    reason text not null,
+    created_at text not null default current_timestamp,
+    foreign key (source_id) references evidence_sources(id),
+    foreign key (run_id) references analysis_runs(id),
+    foreign key (scope_id) references asin_scopes(scope_id)
+);
+
+create table if not exists analysis_artifacts (
+    id integer primary key autoincrement,
+    run_id integer,
+    scope_id text,
+    asin text,
+    artifact_type text not null,
+    artifact_path text not null,
+    checksum text,
+    created_at text not null default current_timestamp,
+    metadata_json text,
+    foreign key (run_id) references analysis_runs(id),
+    foreign key (scope_id) references asin_scopes(scope_id)
 );
 """
 
@@ -233,17 +306,117 @@ def ensure_schema(db_path: str | Path) -> None:
     with closing(sqlite3.connect(db)) as conn, conn:
         conn.executescript(SCHEMA)
         for ddl in [
+            "alter table ad_report_imports add column source_id integer",
+            "alter table ad_report_imports add column scope_id text",
+            "alter table ad_report_imports add column is_active integer not null default 1",
+            "alter table ad_report_imports add column supersedes_import_id integer",
+            "alter table analysis_runs add column scope_id text",
             "alter table recommendation_feedback add column action_taken text",
             "alter table recommendation_feedback add column old_bid real",
             "alter table recommendation_feedback add column new_bid real",
             "alter table recommendation_feedback add column campaign text",
             "alter table recommendation_feedback add column ad_group text",
             "alter table recommendation_feedback add column followup_days integer",
+            "alter table sorftime_snapshots add column source_id integer",
+            "alter table sorftime_snapshots add column is_active integer not null default 1",
+            "alter table sorftime_snapshots add column supersedes_snapshot_id integer",
         ]:
             try:
                 conn.execute(ddl)
             except sqlite3.OperationalError:
                 pass
+
+
+def utc_now() -> str:
+    return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+
+
+def register_scope(
+    conn: sqlite3.Connection,
+    scope_id: str,
+    scope_type: str,
+    member_asins: list[str],
+    marketplace: str = "AU",
+    parent_asin: str | None = None,
+    shared_ad_group_id: str | None = None,
+) -> None:
+    now = utc_now()
+    conn.execute(
+        """
+        insert into asin_scopes
+        (scope_id, scope_type, marketplace, parent_asin, member_asins_json, shared_ad_group_id, created_at, updated_at)
+        values (?, ?, ?, ?, ?, ?, ?, ?)
+        on conflict(scope_id) do update set
+            scope_type=excluded.scope_type,
+            marketplace=excluded.marketplace,
+            parent_asin=excluded.parent_asin,
+            member_asins_json=excluded.member_asins_json,
+            shared_ad_group_id=excluded.shared_ad_group_id,
+            updated_at=excluded.updated_at
+        """,
+        (
+            scope_id,
+            scope_type,
+            marketplace,
+            parent_asin,
+            json.dumps([a.upper() for a in member_asins], ensure_ascii=False),
+            shared_ad_group_id,
+            now,
+            now,
+        ),
+    )
+
+
+def register_evidence_source(
+    conn: sqlite3.Connection,
+    *,
+    source_type: str,
+    source_name: str,
+    captured_at: str,
+    marketplace: str = "AU",
+    asin: str | None = None,
+    scope_id: str | None = None,
+    source_file: str | None = None,
+    source_url: str | None = None,
+    checksum: str | None = None,
+    metadata: dict[str, Any] | None = None,
+    supersedes_source_id: int | None = None,
+) -> int:
+    where = ["source_type = ?", "coalesce(asin, '') = ?", "coalesce(scope_id, '') = ?"]
+    params: list[Any] = [source_type, asin or "", scope_id or ""]
+    if source_file:
+        where.append("source_file = ?")
+        params.append(source_file)
+    previous_version = conn.execute(
+        f"select max(version) from evidence_sources where {' and '.join(where)}",
+        params,
+    ).fetchone()[0]
+    version = int(previous_version or 0) + 1
+    if supersedes_source_id:
+        conn.execute("update evidence_sources set is_active=0 where id=?", (supersedes_source_id,))
+    cur = conn.execute(
+        """
+        insert into evidence_sources
+        (scope_id, asin, marketplace, source_type, source_name, source_file, source_url, checksum,
+         captured_at, version, is_active, supersedes_source_id, metadata_json)
+        values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)
+        """,
+        (
+            scope_id,
+            asin,
+            marketplace,
+            source_type,
+            source_name,
+            source_file,
+            source_url,
+            checksum,
+            captured_at,
+            version,
+            supersedes_source_id,
+            json.dumps(metadata or {}, ensure_ascii=False),
+        ),
+    )
+    return int(cur.lastrowid)
 
 
 def file_checksum(path: str | Path) -> str:
@@ -297,10 +470,14 @@ def read_rows(csv_path: str | Path) -> list[dict[str, Any]]:
 def import_report(db_path: str | Path, csv_path: str | Path, metadata: dict[str, str] | None = None) -> dict[str, Any]:
     csv_file = Path(csv_path)
     parsed = metadata or parse_report_filename(csv_file.name)
+    parsed = dict(parsed)
+    parsed["asin"] = parsed["asin"].upper()
+    marketplace = str(parsed.get("marketplace") or "AU")
+    scope_id = parsed.get("scope_id")
     checksum = file_checksum(csv_file)
     rows = read_rows(csv_file)
     ensure_schema(db_path)
-    imported_at = datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+    imported_at = utc_now()
 
     with closing(sqlite3.connect(db_path)) as conn, conn:
         exists = conn.execute(
@@ -313,18 +490,46 @@ def import_report(db_path: str | Path, csv_path: str | Path, metadata: dict[str,
         conn.execute(
             """
             insert into asins (asin, marketplace, currency, product_url, updated_at)
-            values (?, 'AU', 'AUD', ?, ?)
+            values (?, ?, 'AUD', ?, ?)
             on conflict(asin) do update set updated_at = excluded.updated_at
             """,
-            (parsed["asin"], f"https://www.amazon.com.au/dp/{parsed['asin']}", imported_at),
+            (parsed["asin"], marketplace, f"https://www.amazon.com.au/dp/{parsed['asin']}", imported_at),
+        )
+        previous = conn.execute(
+            """
+            select id, source_id from ad_report_imports
+            where asin=? and report_start=? and report_end=? and ad_mode=? and coalesce(is_active, 1)=1
+            order by id desc limit 1
+            """,
+            (parsed["asin"], parsed["report_start"], parsed["report_end"], parsed["ad_mode"]),
+        ).fetchone()
+        supersedes_import_id = previous[0] if previous else None
+        supersedes_source_id = previous[1] if previous else None
+        if previous:
+            conn.execute("update ad_report_imports set is_active=0 where id=?", (previous[0],))
+        source_id = register_evidence_source(
+            conn,
+            source_type="amazon_ads_csv",
+            source_name="Amazon Ads CSV",
+            source_file=str(csv_file),
+            checksum=checksum,
+            captured_at=imported_at,
+            marketplace=marketplace,
+            asin=parsed["asin"],
+            scope_id=scope_id,
+            metadata=parsed,
+            supersedes_source_id=supersedes_source_id,
         )
         cur = conn.execute(
             """
             insert into ad_report_imports
-            (source_file, file_checksum, asin, report_start, report_end, ad_mode, imported_at, rows_imported, metadata_json)
-            values (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            (source_id, scope_id, source_file, file_checksum, asin, report_start, report_end, ad_mode,
+             imported_at, rows_imported, is_active, supersedes_import_id, metadata_json)
+            values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)
             """,
             (
+                source_id,
+                scope_id,
                 str(csv_file),
                 checksum,
                 parsed["asin"],
@@ -333,6 +538,7 @@ def import_report(db_path: str | Path, csv_path: str | Path, metadata: dict[str,
                 parsed["ad_mode"],
                 imported_at,
                 len(rows),
+                supersedes_import_id,
                 json.dumps(parsed, ensure_ascii=False),
             ),
         )

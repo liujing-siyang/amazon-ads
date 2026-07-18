@@ -16,6 +16,8 @@ External keyword-tool rows must be marked as estimates. Do not scale bids based 
 
 Sorftime values are not Amazon Ads internal truth. Use them for market context, ranking strategy, listing diagnosis, review-theme extraction, and traffic-term comparison.
 
+When a source is corrected or refreshed, keep the old source and mark it inactive. Default recommendations must use active evidence versions only, while reports may cite superseded versions only when explaining historical changes.
+
 ## Recommendation Citation
 
 Every bid, negative, budget, or search-term-promotion recommendation must include metric evidence from imported Amazon CSV rows. Add listing snapshot, external-tool, or Sorftime references only when used in the reason or displayed in the HTML report.

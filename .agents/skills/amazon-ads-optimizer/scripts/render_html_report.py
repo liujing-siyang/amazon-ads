@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 """Render interactive HTML reports for Amazon Ads recommendations."""
 
 from __future__ import annotations
@@ -114,10 +114,19 @@ def render_html(result: dict[str, Any]) -> str:
         if sorftime.get(key):
             trend_bits.append(f"<li>{label}: {_esc(sorftime.get(key))}</li>")
     traffic_terms = sorftime.get("traffic_terms") or []
-    traffic_html = "".join(f"<span class='pill'>{_esc(t.get('keyword'))} ? SV {_esc(t.get('search_volume'))} ? {_esc(t.get('organic_position'))}</span>" for t in traffic_terms[:12] if isinstance(t, dict))
+    traffic_html = "".join(f"<span class='pill'>{_esc(t.get('keyword'))} | SV {_esc(t.get('search_volume'))} | {_esc(t.get('organic_position'))}</span>" for t in traffic_terms[:12] if isinstance(t, dict))
     sorftime_html = ""
     if sorftime:
-        sorftime_html = f"<section><h2>{ZH['sorftime_section']}</h2><p>?? {_fmt_money(detail.get('price'))}??? {_esc(detail.get('rating'))}???? {_esc(detail.get('review_count'))}???? {_esc(detail.get('monthly_sales'))}????? {_esc(detail.get('category_rank'))}??????? {_esc(detail.get('subcategory_rank'))}</p><ul>{''.join(trend_bits)}</ul><div>{traffic_html}</div></section>"
+        sorftime_html = (
+            f"<section><h2>{ZH['sorftime_section']}</h2>"
+            f"<p>\u4ef7\u683c {_fmt_money(detail.get('price'))}"
+            f"\uff1b\u8bc4\u5206 {_esc(detail.get('rating'))}"
+            f"\uff1b\u8bc4\u8bba\u6570 {_esc(detail.get('review_count'))}"
+            f"\uff1b\u6708\u9500\u91cf {_esc(detail.get('monthly_sales'))}"
+            f"\uff1b\u5927\u7c7b\u6392\u540d {_esc(detail.get('category_rank'))}"
+            f"\uff1b\u7ec6\u5206\u7c7b\u76ee\u6392\u540d {_esc(detail.get('subcategory_rank'))}</p>"
+            f"<ul>{''.join(trend_bits)}</ul><div>{traffic_html}</div></section>"
+        )
     return f"""<!doctype html>
 <html lang=\"zh-CN\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">
 <title>Amazon Ads Optimization Report - {_esc(result.get('asin'))}</title>
@@ -130,7 +139,7 @@ body{{font-family:Arial,'Microsoft YaHei',sans-serif;margin:0;color:#1f2933;back
 <section><h2>{ZH['trend_section']}</h2><p>{_esc(trend.get('message_zh'))}</p></section>
 {sorftime_html}
 <section><h2>{ZH['structure_section']}</h2>{structure_html or '<p>' + ZH['no_structure'] + '</p>'}</section>
-<section><h2>{ZH['listing_section']}</h2><p>{ZH['score']}?<strong>{_esc(listing.get('score'))}</strong></p><p>{_esc(listing.get('rationale_zh'))}</p><h3>{ZH['suggested_title']}</h3><div class=\"copy\">{_esc(listing.get('title'))}</div><h3>{ZH['suggested_bullets']}</h3><ol>{_list_items(listing.get('bullets') or [])}</ol><h3>{ZH['suggested_description']}</h3><div class=\"copy\">{_esc(listing.get('description'))}</div><h3>{ZH['backend']}</h3><div class=\"copy\">{_esc(' '.join(listing.get('backend_search_terms') or []))}</div></section>
+<section><h2>{ZH['listing_section']}</h2><p>{ZH['score']}：<strong>{_esc(listing.get('score'))}</strong></p><p>{_esc(listing.get('rationale_zh'))}</p><h3>{ZH['suggested_title']}</h3><div class=\"copy\">{_esc(listing.get('title'))}</div><h3>{ZH['suggested_bullets']}</h3><ol>{_list_items(listing.get('bullets') or [])}</ol><h3>{ZH['suggested_description']}</h3><div class=\"copy\">{_esc(listing.get('description'))}</div><h3>{ZH['backend']}</h3><div class=\"copy\">{_esc(' '.join(listing.get('backend_search_terms') or []))}</div></section>
 <section><h2>{ZH['sources_section']}</h2><ul>{source_items}</ul><p>{_esc(evidence)}</p></section>
 <section><h2>{ZH['tracking_section']}</h2><p>{ZH['tracking_text']}</p></section>
 <section><h2>{ZH['recs_section']}</h2><div class=\"controls\"><select id=\"filterAction\"><option value=\"\">{ZH['all_actions']}</option></select><select id=\"filterPriority\"><option value=\"\">{ZH['all_priority']}</option></select><select id=\"filterAdmode\"><option value=\"\">{ZH['all_modes']}</option></select><select id=\"filterThreshold\"><option value=\"\">{ZH['all_acos']}</option></select><select id=\"filterEvidence\"><option value=\"\">{ZH['all_evidence']}</option><option value=\"amazon\">{ZH['amazon_evidence']}</option><option value=\"sellersprite\">{ZH['external_evidence']}</option></select><input id=\"searchBox\" placeholder=\"{ZH['search']}\"></div>
@@ -162,3 +171,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+

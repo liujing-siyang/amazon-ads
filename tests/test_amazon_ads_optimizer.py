@@ -304,6 +304,7 @@ class AmazonAdsOptimizerTests(unittest.TestCase):
         self.assertIn("data-action=\"promote_to_exact\"", html)
         self.assertIn("SellerSprite", html)
         self.assertIn("filterAction", html)
+        self.assertNotIn("锛?strong", html)
 
     def test_config_json_shape_is_accepted_by_analyzer(self):
         importer = load_module("import_ad_reports")
@@ -465,6 +466,41 @@ class AmazonAdsOptimizerTests(unittest.TestCase):
             self.assertIn("Bluetooth Pillow Speaker", listing["title"])
             self.assertIn("\u4e2d\u6587\u89e3\u8bfb", listing["rationale_zh"])
 
+    def test_listing_copy_matches_book_nook_terms(self):
+        importer = load_module("import_ad_reports")
+        analyzer = load_module("analyze_asin")
+        search = "\u987e\u5ba2\u641c\u7d22\u8bcd"
+        keyword = "\u5173\u952e\u8bcd"
+        impressions = "\u5c55\u793a\u91cf"
+        clicks = "\u70b9\u51fb\u91cf"
+        ctr = "\u70b9\u51fb\u7387"
+        spend = "\u603b\u6210\u672c (AUD)"
+        orders = "\u8d2d\u4e70\u91cf"
+        sales = "\u9500\u552e\u989d (AUD)"
+        cvr = "\u8d2d\u4e70\u7387"
+        with tempfile.TemporaryDirectory() as td:
+            db = Path(td) / "ads.sqlite"
+            csv_path = Path(td) / "auto.csv"
+            write_csv(csv_path, [{
+                search: "book nook japanese", keyword: "close-match", impressions: "50", clicks: "10", ctr: "0.2",
+                spend: "3.00", "CPC (AUD)": "0.30", orders: "2", sales: "131.98", "ACOS": "0.0227", "ROAS": "44", cvr: "0.2",
+            }])
+            metadata = {"report_start":"2026-05-01", "report_end":"2026-06-25", "asin":"B0G4D6CQRQ", "ad_mode":"automatic"}
+            importer.import_report(db, csv_path, metadata=metadata)
+            with closing(sqlite3.connect(db)) as conn:
+                conn.execute("""
+                    insert into listing_snapshots
+                    (asin, marketplace, product_url, captured_at, title, bullets_json, rating, review_count, extraction_status)
+                    values (?, 'AU', ?, '2026-06-25T00:00:00', ?, ?, 5.0, 144, 'ok')
+                """, ("B0G4D6CQRQ", "https://www.amazon.com.au/dp/B0G4D6CQRQ", "Japanese Book Nook Kit", json.dumps(["DIY miniature alley kit"], ensure_ascii=False)))
+                conn.commit()
+
+            listing = analyzer.analyze(db, "B0G4D6CQRQ", 0.2)["listing_optimization"]
+
+            self.assertIn("Book Nook", listing["title"])
+            self.assertIn("Japanese", listing["title"])
+            self.assertNotIn("Pillow Speaker", listing["title"])
+            self.assertNotIn("pillow speaker", listing["description"].lower())
     def test_period_only_trend_message_and_chinese_html_sections(self):
         renderer = load_module("render_html_report")
         result = {
@@ -486,6 +522,7 @@ class AmazonAdsOptimizerTests(unittest.TestCase):
         self.assertIn("Listing \u627f\u63a5\u80fd\u529b\u8bc4\u5206", html)
         self.assertIn("\u5efa\u8bae\u6807\u9898", html)
         self.assertIn("pillow speaker", html)
+        self.assertNotIn("锛?strong", html)
 
     def test_external_keyword_import_supports_generic_tool_and_recommendation_tracking(self):
         importer = load_module("import_ad_reports")
@@ -525,5 +562,367 @@ class AmazonAdsOptimizerTests(unittest.TestCase):
             self.assertEqual(row[3], "AU")
 
 
+    def test_dual_asin_shared_manual_report_keeps_shared_group_separate(self):
+        importer = load_module("import_ad_reports")
+        renderer = load_module("render_dual_asin_report")
+        with tempfile.TemporaryDirectory() as td:
+            db = Path(td) / "ads.sqlite"
+            auto_a = Path(td) / "a.csv"
+            auto_b = Path(td) / "b.csv"
+            manual = Path(td) / "manual.csv"
+            write_csv(auto_a, [{
+                "顾客搜索词": "book nook japanese", "关键词": "close-match", "展示量": "20", "点击量": "5", "点击率": "0.25",
+                "总成本 (AUD)": "1.00", "CPC (AUD)": "0.20", "购买量": "1", "销售额 (AUD)": "49.99", "ACOS": "0.02", "ROAS": "50", "购买率": "0.2",
+            }])
+            write_csv(auto_b, [{
+                "顾客搜索词": "book nook moss", "关键词": "close-match", "展示量": "30", "点击量": "6", "点击率": "0.2",
+                "总成本 (AUD)": "1.20", "CPC (AUD)": "0.20", "购买量": "1", "销售额 (AUD)": "42.49", "ACOS": "0.028", "ROAS": "35", "购买率": "0.1667",
+            }])
+            write_csv(manual, [{
+                "已添加为": "关键词: 词组匹配", "顾客搜索词": "book nook kit", "关键词": "book nook kit", "目标竞价 (AUD)": "0.25",
+                "展示量": "100", "点击量": "20", "点击率": "0.2", "总成本 (AUD)": "4.00", "CPC (AUD)": "0.20",
+                "购买量": "2", "销售额 (AUD)": "99.98", "ACOS": "0.04", "ROAS": "25", "购买率": "0.1",
+            }], include_manual=True)
+            importer.import_report(db, auto_a, metadata={"report_start":"2026-06-26", "report_end":"2026-07-10", "asin":"B0G4D6CQRQ", "ad_mode":"automatic"})
+            importer.import_report(db, auto_b, metadata={"report_start":"2026-05-01", "report_end":"2026-07-10", "asin":"B0FQNHGLPZ", "ad_mode":"automatic"})
+            importer.import_report(db, manual, metadata={"report_start":"2026-05-07", "report_end":"2026-07-09", "asin":"B0G4D6CQRQ-B0FQNHGLPZ", "ad_mode":"manual"})
+
+            report = renderer.build_report(db, ["B0G4D6CQRQ", "B0FQNHGLPZ"], "B0G4D6CQRQ-B0FQNHGLPZ", 0.2)
+            html = renderer.render_html(report)
+
+            self.assertIn("共享手动组", html)
+            self.assertIn("B0G4D6CQRQ-B0FQNHGLPZ", html)
+            self.assertIn("book nook kit", html)
+            self.assertNotIn("Pillow Speaker", html)
+            self.assertNotIn("锛", html)
+            with closing(sqlite3.connect(db)) as conn:
+                manual_rows = conn.execute("select count(*) from search_term_performance where asin='B0G4D6CQRQ-B0FQNHGLPZ'").fetchone()[0]
+                copied_rows = conn.execute("select count(*) from search_term_performance where asin in ('B0G4D6CQRQ','B0FQNHGLPZ') and ad_mode='manual'").fetchone()[0]
+            self.assertEqual(manual_rows, 1)
+            self.assertEqual(copied_rows, 0)
+    def test_sorftime_launch_plan_outputs_reference_format_files(self):
+        importer = load_module("import_ad_reports")
+        renderer = load_module("render_sorftime_launch_plan")
+        with tempfile.TemporaryDirectory() as td:
+            td = Path(td)
+            db = td / "ads.sqlite"
+            auto_a = td / "a.csv"
+            auto_b = td / "b.csv"
+            shared = td / "shared.csv"
+            write_csv(auto_a, [{
+                "顾客搜索词": "book nook", "关键词": "close-match", "展示量": "100", "点击量": "20", "点击率": "0.2",
+                "总成本 (AUD)": "5.00", "CPC (AUD)": "0.25", "购买量": "2", "销售额 (AUD)": "120.00", "ACOS": "0.0417", "ROAS": "24", "购买率": "0.1",
+            }])
+            write_csv(auto_b, [{
+                "顾客搜索词": "japanese garden book nook", "关键词": "close-match", "展示量": "50", "点击量": "10", "点击率": "0.2",
+                "总成本 (AUD)": "3.00", "CPC (AUD)": "0.30", "购买量": "1", "销售额 (AUD)": "49.99", "ACOS": "0.06", "ROAS": "16.66", "购买率": "0.1",
+            }])
+            write_csv(shared, [{
+                "已添加为": "关键词: 词组匹配", "顾客搜索词": "book nook kit", "关键词": "book nook kit", "目标竞价 (AUD)": "0.25",
+                "展示量": "100", "点击量": "20", "点击率": "0.2", "总成本 (AUD)": "4.00", "CPC (AUD)": "0.20",
+                "购买量": "2", "销售额 (AUD)": "99.98", "ACOS": "0.04", "ROAS": "25", "购买率": "0.1",
+            }], include_manual=True)
+            importer.import_report(db, auto_a, metadata={"report_start":"2026-06-26", "report_end":"2026-07-10", "asin":"B0G4D6CQRQ", "ad_mode":"automatic"})
+            importer.import_report(db, auto_b, metadata={"report_start":"2026-05-01", "report_end":"2026-07-10", "asin":"B0FQNHGLPZ", "ad_mode":"automatic"})
+            importer.import_report(db, shared, metadata={"report_start":"2026-05-07", "report_end":"2026-07-09", "asin":"B0G4D6CQRQ-B0FQNHGLPZ", "ad_mode":"manual"})
+            context = {
+                "asins": ["B0G4D6CQRQ", "B0FQNHGLPZ"],
+                "shared_id": "B0G4D6CQRQ-B0FQNHGLPZ",
+                "product_details": {"B0G4D6CQRQ": {"monthly_sales": 39, "gross_margin": 76.25, "subcategory": "Dollhouses"}},
+                "keyword_details": {"book nook": {"月搜索量": 5168, "词搜索量旺季": "11月, 12月"}},
+                "keyword_search_results": {"book nook": [{"ASIN": "B0TESTASIN", "品牌": "CUTEBEE", "本产品月销量": 100, "标题": "Book Nook Kit"}]},
+            }
+            output_prefix = td / "reports" / "B0G4D6CQRQ_B0FQNHGLPZ_sorftime_launch_plan_2026-07-10"
+            plan = renderer.build_plan(db, context, str(output_prefix), "2026-07-10")
+            renderer.write_outputs(plan)
+
+            html = Path(plan["campaign_files"]["html_report"]).read_text(encoding="utf-8")
+            campaign_csv = Path(plan["campaign_files"]["campaign_build_csv"]).read_text(encoding="utf-8-sig")
+            negatives_csv = Path(plan["campaign_files"]["pre_negatives_csv"]).read_text(encoding="utf-8-sig")
+            config = json.loads(Path(plan["campaign_files"]["json_config"]).read_text(encoding="utf-8"))
+
+            self.assertIn("交付文件", html)
+            self.assertIn("预算结构", html)
+            self.assertIn("Sorftime证据摘要", html)
+            self.assertIn("Campaign Build", html)
+            self.assertIn("Pre-Negatives", html)
+            self.assertIn("RecordType,Campaign,AdGroup,TargetingType,DailyBudgetAUD", campaign_csv.splitlines()[0])
+            self.assertIn("SP_AUTO_Research_BookNook_Parent", campaign_csv)
+            self.assertIn("negative phrase", negatives_csv)
+            self.assertIn("book nook", campaign_csv)
+            self.assertNotIn("Pillow Speaker", html)
+            self.assertNotIn("锛", html)
+            self.assertEqual(config["shared_id"], "B0G4D6CQRQ-B0FQNHGLPZ")
+            with closing(sqlite3.connect(db)) as conn:
+                copied_rows = conn.execute("select count(*) from search_term_performance where asin in ('B0G4D6CQRQ','B0FQNHGLPZ') and ad_mode='manual'").fetchone()[0]
+            self.assertEqual(copied_rows, 0)
+
+    def test_sorftime_launch_plan_uses_theme_config_without_japanese_hardcoding(self):
+        importer = load_module("import_ad_reports")
+        renderer = load_module("render_sorftime_launch_plan")
+        with tempfile.TemporaryDirectory() as td:
+            td = Path(td)
+            db = td / "ads.sqlite"
+            shared = td / "shared.csv"
+            write_csv(shared, [{
+                "已添加为": "关键词: 词组匹配", "顾客搜索词": "book nook library", "关键词": "book nook library", "目标竞价 (AUD)": "0.35",
+                "展示量": "100", "点击量": "20", "点击率": "0.2", "总成本 (AUD)": "4.00", "CPC (AUD)": "0.20",
+                "购买量": "2", "销售额 (AUD)": "100.00", "ACOS": "0.04", "ROAS": "25", "购买率": "0.1",
+            }], include_manual=True)
+            importer.import_report(db, shared, metadata={"report_start":"2026-05-07", "report_end":"2026-07-09", "asin":"B0G5H38WVQ-B0G5G8JZTD", "ad_mode":"manual"})
+            context = {
+                "asins": ["B0G5H38WVQ", "B0G5G8JZTD"],
+                "shared_id": "B0G5H38WVQ-B0G5G8JZTD",
+                "theme_label": "BookNook_Library",
+                "parent_label": "BookNook_Library",
+                "core_terms": ["book nook", "book nook kit", "book nook library", "booknook"],
+                "theme_longtail_terms": ["library book nook", "twilight book nook", "book nook mechanical gear"],
+                "generic_observation_terms": ["3d wooden puzzle", "miniature house kit", "bookshelf decor"],
+                "ranking_terms": ["book nook", "book nook kit", "book nook library"],
+                "variant_routing_rules": {
+                    "B0G5H38WVQ": {"label": "古书籍收藏室", "keywords": ["mechanical", "gear", "antique", "archive"]},
+                    "B0G5G8JZTD": {"label": "微光书阁", "keywords": ["twilight", "fireplace", "dark academia", "beginner"]},
+                },
+                "keyword_details": {"book nook": {"月搜索量": 5168, "词搜索量旺季": "11月, 12月"}},
+            }
+
+            plan = renderer.build_plan(db, context, str(td / "reports" / "library_sorftime_launch_plan_2026-07-10"), "2026-07-10")
+            campaign_text = "\n".join(",".join(r.get(f, "") for f in renderer.CAMPAIGN_FIELDS) for r in plan["campaigns"])
+            html = renderer.render_html(plan)
+
+            self.assertIn("SP_AUTO_Research_BookNook_Library", campaign_text)
+            self.assertIn("SP_PHRASE_Longtail_BookNook_Library", campaign_text)
+            self.assertIn("book nook library", campaign_text)
+            self.assertIn("twilight book nook", campaign_text)
+            self.assertIn("优先承接 B0G5G8JZTD", campaign_text)
+            self.assertNotIn("japanese book nook", campaign_text)
+            self.assertNotIn("book nook cat", campaign_text)
+            self.assertNotIn("book nook kit showa", campaign_text)
+            self.assertIn("Product: BookNook_Library", html)
+            self.assertNotIn("Mchifrys Japanese Book Nook parent", html)
+
+    def test_book_nook_knowledge_base_appends_theme_without_dropping_history(self):
+        renderer = load_module("render_sorftime_launch_plan")
+        with tempfile.TemporaryDirectory() as td:
+            td = Path(td)
+            knowledge_json = td / "book_nook_category_knowledge.json"
+            knowledge_md = td / "book_nook_category_knowledge.md"
+            knowledge_json.write_text(json.dumps({
+                "themes": [{"parent_asin": "B0OLDPARENT", "theme_label": "日系街景", "asins": ["B0OLDASIN"]}],
+                "long_term_pre_negatives": ["kindle"],
+            }, ensure_ascii=False), encoding="utf-8")
+            plan = {
+                "asins": ["B0G5H38WVQ", "B0G5G8JZTD"],
+                "shared_id": "B0G5H38WVQ-B0G5G8JZTD",
+                "sorftime_context": {
+                    "theme_label": "BookNook_Library",
+                    "parent_asin": "B0G6DB5DY2",
+                    "product_details": {"B0G5H38WVQ": {"price": 65.99, "rating": 3.8, "review_count": 4, "monthly_sales": 9, "subcategory": "Dollhouses"}},
+                    "keyword_details": {"book nook": {"月搜索量": 5168, "词搜索量旺季": "11月, 12月"}},
+                    "competitor_brands": ["CUTEBEE", "Rolife"],
+                },
+                "campaigns": [{"Target": "book nook library", "Evidence": "广告已出2单，ACOS 4.0%", "Notes": "核心词"}],
+                "pre_negatives": [{"Term": "kindle"}, {"Term": "reading light"}],
+                "ad_summaries": {"B0G5H38WVQ-B0G5G8JZTD": {"orders": 2, "acos": 0.04}},
+            }
+
+            renderer.write_knowledge_base(plan, knowledge_json, knowledge_md)
+            knowledge = json.loads(knowledge_json.read_text(encoding="utf-8"))
+            md = knowledge_md.read_text(encoding="utf-8")
+
+            self.assertIn("B0OLDPARENT", [t["parent_asin"] for t in knowledge["themes"]])
+            self.assertIn("B0G6DB5DY2", [t["parent_asin"] for t in knowledge["themes"]])
+            self.assertIn("Book Nook 类目知识库", md)
+            self.assertIn("BookNook_Library", md)
+            self.assertIn("CUTEBEE", md)
+
+    def test_sorftime_launch_plan_single_asin_has_no_default_shared_group(self):
+        importer = load_module("import_ad_reports")
+        renderer = load_module("render_sorftime_launch_plan")
+        with tempfile.TemporaryDirectory() as td:
+            td = Path(td)
+            db = td / "ads.sqlite"
+            auto = td / "auto.csv"
+            manual = td / "manual.csv"
+            write_csv(auto, [{
+                "顾客搜索词": "book nook", "关键词": "close-match", "展示量": "200", "点击量": "20", "点击率": "0.1",
+                "总成本 (AUD)": "6.00", "CPC (AUD)": "0.30", "购买量": "2", "销售额 (AUD)": "120.00",
+                "ACOS": "0.05", "ROAS": "20", "购买率": "0.1",
+            }])
+            write_csv(manual, [{
+                "已添加为": "关键词: 词组匹配", "顾客搜索词": "corner tavern book nook", "关键词": "corner tavern",
+                "目标竞价 (AUD)": "0.4", "展示量": "50", "点击量": "5", "点击率": "0.1",
+                "总成本 (AUD)": "1.50", "CPC (AUD)": "0.30", "购买量": "1", "销售额 (AUD)": "65.99",
+                "ACOS": "0.0227", "ROAS": "44", "购买率": "0.2",
+            }], include_manual=True)
+            importer.import_report(db, auto, metadata={"report_start":"2026-05-12", "report_end":"2026-07-15", "asin":"B0GHMXGJ19", "ad_mode":"automatic"})
+            importer.import_report(db, manual, metadata={"report_start":"2026-05-12", "report_end":"2026-07-15", "asin":"B0GHMXGJ19", "ad_mode":"manual"})
+            context = {
+                "asins": ["B0GHMXGJ19"],
+                "shared_id": None,
+                "theme_label": "BookNook_Tavern",
+                "parent_label": "BookNook_Tavern",
+                "core_terms": ["book nook", "book nook kit", "booknook", "corner tavern book nook", "pub book nook"],
+                "theme_longtail_terms": ["vintage pub book nook", "hidden tavern book nook", "3d puzzle tavern"],
+                "generic_observation_terms": ["miniature house kit", "3d wooden puzzle", "bookshelf decor"],
+                "ranking_terms": ["book nook", "corner tavern book nook"],
+                "keyword_details": {"book nook": {"月搜索量": 5291, "词搜索量旺季": "11月, 12月"}},
+            }
+
+            plan = renderer.build_plan(db, context, str(td / "reports" / "B0GHMXGJ19_sorftime_launch_plan_2026-07-15"), "2026-07-15")
+            html = renderer.render_html(plan)
+            campaign_text = "\n".join(",".join(r.get(f, "") for f in renderer.CAMPAIGN_FIELDS) for r in plan["campaigns"])
+
+            self.assertIsNone(plan["shared_id"])
+            self.assertEqual(list(plan["ad_summaries"].keys()), ["B0GHMXGJ19"])
+            self.assertIn("SP_AUTO_Research_BookNook_Tavern", campaign_text)
+            self.assertIn("corner tavern book nook", campaign_text)
+            self.assertIn("3d puzzle tavern", campaign_text)
+            self.assertNotIn("B0G4D6CQRQ-B0FQNHGLPZ", json.dumps(plan, ensure_ascii=False))
+            self.assertNotIn("共享手动组", html)
+            self.assertNotIn("japanese book nook", campaign_text)
+            self.assertNotIn("BookNook_Library", html)
+
+    def test_book_nook_knowledge_base_rewrites_mojibake_when_appending_tavern(self):
+        renderer = load_module("render_sorftime_launch_plan")
+        with tempfile.TemporaryDirectory() as td:
+            td = Path(td)
+            knowledge_json = td / "book_nook_category_knowledge.json"
+            knowledge_md = td / "book_nook_category_knowledge.md"
+            knowledge_json.write_text(json.dumps({
+                "themes": [{
+                    "parent_asin": "B0OLDPARENT",
+                    "theme_label": "BookNook_Library",
+                    "asins": ["B0OLDASIN"],
+                    "validated_terms": [{"term": "book nook", "evidence": "骞垮憡宸插嚭2鍗曪紝ACOS 6.5%", "notes": "鏍稿績璇"}],
+                }],
+                "core_keywords": {},
+                "competitor_brands": ["CUTEBEE"],
+                "long_term_pre_negatives": ["kindle"],
+            }, ensure_ascii=False), encoding="utf-8")
+            plan = {
+                "asins": ["B0GHMXGJ19"],
+                "shared_id": None,
+                "sorftime_context": {
+                    "theme_label": "BookNook_Tavern",
+                    "parent_asin": "B0H4GPHFSS",
+                    "product_details": {"B0GHMXGJ19": {"title": "Corner Tavern Book Nook", "price": 0, "rating": 5.0, "review_count": 2, "monthly_sales": 23, "subcategory": "Dollhouses"}},
+                    "keyword_details": {"book nook": {"月搜索量": 5291, "词搜索量旺季": "11月, 12月"}},
+                    "competitor_brands": ["LEGO", "FUNPOLA"],
+                },
+                "campaigns": [{"Entity": "Keyword", "Target": "corner tavern book nook", "MatchType": "exact", "Evidence": "广告已出1单，ACOS 2.3%", "Notes": "核心词"}],
+                "pre_negatives": [{"Term": "kindle"}, {"Term": "reading light"}],
+                "ad_summaries": {"B0GHMXGJ19": {"orders": 3, "acos": 0.05}},
+            }
+
+            renderer.write_knowledge_base(plan, knowledge_json, knowledge_md)
+            raw = knowledge_json.read_text(encoding="utf-8")
+            knowledge = json.loads(raw)
+            md = knowledge_md.read_text(encoding="utf-8")
+
+            self.assertIn("B0OLDPARENT", [t["parent_asin"] for t in knowledge["themes"]])
+            self.assertIn("B0H4GPHFSS", [t["parent_asin"] for t in knowledge["themes"]])
+            self.assertIn("BookNook_Tavern", md)
+            self.assertIn("corner tavern book nook", raw)
+            self.assertNotIn("骞垮憡", raw)
+            self.assertNotIn("鏍稿績", raw)
+
+    def test_overlapping_ad_import_supersedes_prior_active_version(self):
+        importer = load_module("import_ad_reports")
+        analyzer = load_module("analyze_asin")
+        with tempfile.TemporaryDirectory() as td:
+            td = Path(td)
+            db = td / "ads.sqlite"
+            first = td / "first.csv"
+            second = td / "second.csv"
+            write_csv(first, [{
+                "顾客搜索词": "book nook", "关键词": "close-match", "展示量": "100", "点击量": "10",
+                "总成本 (AUD)": "5.00", "CPC (AUD)": "0.50", "购买量": "1", "销售额 (AUD)": "50.00",
+                "ACOS": "0.10", "ROAS": "10", "购买率": "0.1",
+            }])
+            write_csv(second, [{
+                "顾客搜索词": "book nook", "关键词": "close-match", "展示量": "200", "点击量": "20",
+                "总成本 (AUD)": "8.00", "CPC (AUD)": "0.40", "购买量": "2", "销售额 (AUD)": "100.00",
+                "ACOS": "0.08", "ROAS": "12.5", "购买率": "0.1",
+            }])
+            metadata = {"report_start": "2026-07-01", "report_end": "2026-07-10", "asin": "B0G4D6CQRQ", "ad_mode": "automatic"}
+
+            first_result = importer.import_report(db, first, metadata=metadata)
+            second_result = importer.import_report(db, second, metadata=metadata)
+            result = analyzer.analyze(db, "B0G4D6CQRQ", 0.2)
+
+            self.assertEqual(result["summary"]["spend"], 8.0)
+            self.assertEqual(result["summary"]["orders"], 2)
+            with closing(sqlite3.connect(db)) as conn:
+                rows = conn.execute("select id, is_active, supersedes_import_id from ad_report_imports order by id").fetchall()
+                active_sources = conn.execute("select count(*) from evidence_sources where is_active=1 and asin='B0G4D6CQRQ'").fetchone()[0]
+            self.assertEqual(rows[0], (first_result["import_id"], 0, None))
+            self.assertEqual(rows[1], (second_result["import_id"], 1, first_result["import_id"]))
+            self.assertEqual(active_sources, 1)
+
+    def test_sorftime_payload_versions_keep_latest_active_snapshot(self):
+        sorftime = load_module("fetch_sorftime_asin")
+        importer = load_module("import_ad_reports")
+        with tempfile.TemporaryDirectory() as td:
+            db = Path(td) / "ads.sqlite"
+            importer.ensure_schema(db)
+
+            sorftime.store_sorftime_payloads(db, "B0GXZQXFM4", "AU", {"product_detail": {"price": 30}}, query_date="2026-07-09")
+            sorftime.store_sorftime_payloads(db, "B0GXZQXFM4", "AU", {"product_detail": {"price": 35}}, query_date="2026-07-10")
+
+            with closing(sqlite3.connect(db)) as conn:
+                rows = conn.execute("select metric_type, query_date, is_active from sorftime_snapshots order by id").fetchall()
+                source_count = conn.execute("select count(*) from evidence_sources where source_type='sorftime_mcp' and is_active=1").fetchone()[0]
+            self.assertEqual(rows, [("product_detail", "2026-07-09", 0), ("product_detail", "2026-07-10", 1)])
+            self.assertEqual(source_count, 1)
+
+    def test_agent_workflow_creates_variant_scope_and_middle_files(self):
+        importer = load_module("import_ad_reports")
+        workflow = load_module("ads_agent_workflow")
+        with tempfile.TemporaryDirectory() as td:
+            td = Path(td)
+            db = td / "ads.sqlite"
+            importer.ensure_schema(db)
+            csv_path = td / "shared.csv"
+            write_csv(csv_path, [{
+                "已添加为": "关键词: 词组匹配", "顾客搜索词": "book nook library", "关键词": "book nook library",
+                "目标竞价 (AUD)": "0.35", "展示量": "100", "点击量": "20", "总成本 (AUD)": "4.00",
+                "CPC (AUD)": "0.20", "购买量": "2", "销售额 (AUD)": "100.00", "ACOS": "0.04",
+                "ROAS": "25", "购买率": "0.1",
+            }], include_manual=True)
+            importer.import_report(db, csv_path, metadata={
+                "report_start": "2026-05-07",
+                "report_end": "2026-07-09",
+                "asin": "B0AAA11111-B0BBB22222-B0CCC33333",
+                "ad_mode": "manual",
+            })
+
+            result = workflow.run_agent_workflow(
+                db,
+                scope_id="BookNook_Library_Group",
+                asins=["B0AAA11111", "B0BBB22222", "B0CCC33333"],
+                shared_id="B0AAA11111-B0BBB22222-B0CCC33333",
+                output_root=td / "data",
+                variant_routing_rules={"B0BBB22222": {"keywords": ["library"]}},
+                sorftime_context={"keyword_details": {"book nook library": {"monthly_search_volume": 300}}},
+            )
+
+            files = result["files"]
+            self.assertTrue(Path(files["evidence_index"]).exists())
+            self.assertTrue(Path(files["normalized_ad_terms"]).exists())
+            self.assertTrue(Path(files["opportunity_map"]).exists())
+            self.assertTrue(Path(files["variant_routing_map"]).exists())
+            self.assertTrue(Path(files["decision_log"]).exists())
+            routing = json.loads(Path(files["variant_routing_map"]).read_text(encoding="utf-8"))
+            members = json.loads((td / "data" / "scopes" / "BookNook_Library_Group" / "members.json").read_text(encoding="utf-8"))
+            with closing(sqlite3.connect(db)) as conn:
+                scope = conn.execute("select scope_type, member_asins_json, shared_ad_group_id from asin_scopes where scope_id=?", ("BookNook_Library_Group",)).fetchone()
+                artifact_count = conn.execute("select count(*) from analysis_artifacts where scope_id=?", ("BookNook_Library_Group",)).fetchone()[0]
+            self.assertEqual(routing["routes"][0]["recommended_asin"], "B0BBB22222")
+            self.assertEqual(members["asins"], ["B0AAA11111", "B0BBB22222", "B0CCC33333"])
+            self.assertEqual(scope[0], "variant_group")
+            self.assertEqual(json.loads(scope[1]), ["B0AAA11111", "B0BBB22222", "B0CCC33333"])
+            self.assertEqual(scope[2], "B0AAA11111-B0BBB22222-B0CCC33333")
+            self.assertGreaterEqual(artifact_count, 6)
 if __name__ == "__main__":
     unittest.main()
