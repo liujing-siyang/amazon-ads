@@ -57,6 +57,24 @@ Use daily or segmented ad data for real 7/14/30-day trend calculations. If impor
 
 Generate a plan with these roles when evidence supports it: automatic exploration, manual exact core terms, manual phrase expansion, competitor keyword/ASIN test, brand defense, and ranking push.
 
+## Nexscope Campaign Blueprint Controls
+
+Use these optional controls when the task is campaign creation, channel strategy, or pre-launch structure rather than only CSV optimization:
+
+- `campaign_mode`: `build` for new campaign blueprints, `optimize` for existing campaign audits, or `mixed` when launch structure and historical CSV evidence both matter.
+- `ad_channel_scope`: `sp`, `sb`, `sd`, or `mixed`. Default to `sp` for this project unless the user explicitly asks for Sponsored Brands or Display.
+- `negative_keyword_policy`: seed negatives, cross-campaign isolation, negative exact for proven wrong terms, and negative phrase for broad irrelevant modifiers.
+- `campaign_blueprint_inputs`: ASIN, marketplace, product type, selling price, margin model, launch/mature stage, monthly budget, priority keywords, competitor ASINs, and source references.
+
+For new launches, structure Sponsored Products with Auto -> Broad/Phrase -> Exact migration and competitor ASIN tests when competitor targets are sourced. Add migrated winners as negatives in the source campaign to reduce internal competition.
+
+Sponsored Products, Sponsored Brands, and Sponsored Display should be discussed as separate budget layers:
+- Sponsored Products: default launch and optimization layer; use CSV/Sorftime evidence whenever available.
+- Sponsored Brands: optional brand/search expansion layer; only recommend when brand assets and storefront readiness are known.
+- Sponsored Display: optional retargeting, competitor-page, or audience layer; do not treat it as a default beginner-seller requirement.
+
+Display and SB guidance must stay strategic unless the project has matching data exports. Do not invent bid landscapes, audience sizes, or conversion rates.
+
 ## Listing Optimization
 
 Score ad-to-listing fit from title coverage, bullet coverage, converting-term coverage, rating/review count, price availability, benefit clarity, and keyword gaps. Generate English title, five bullets, long description, and backend search terms. Explain changes in Chinese.

@@ -7,6 +7,21 @@ description: Analyze and optimize Amazon AU Sponsored Products advertising for a
 
 Use this skill for Amazon AU Sponsored Products optimization where the goal is profit efficiency first, with explicit ranking support separated from profit scaling. Raw search terms, keywords, ASINs, and generated listing copy stay in English. Operator explanations in HTML reports should be Chinese.
 
+## Nexscope Fusion Boundary
+
+Use these Nexscope Amazon-Skills only as supporting advertising frameworks inside this optimizer:
+
+- `amazon-ppc-campaign`: new campaign blueprints, Auto/Manual/Exact/Product Targeting structure, ACOS guardrails, keyword funnel, and bid-action language.
+- `amazon-advertising-strategy`: Sponsored Products, Sponsored Brands, Sponsored Display, budget allocation, launch/mature strategy, and channel-level tradeoffs.
+- `amazon-negative-keywords`: seed negatives, search-term waste rules, negative exact/phrase policy, and cross-campaign isolation.
+- `amazon-display-ads`: Sponsored Display audience, competitor page, retargeting, and creative notes when Display is explicitly in scope.
+
+Do not absorb other Nexscope Amazon-Skills into this project unless the user explicitly expands scope. Nexscope frameworks shape campaign planning language; Amazon Ads CSV, Sorftime, SellerSprite, user files, and cited sources remain the evidence of record.
+
+## Operating Convergence
+
+Treat this optimizer as the Ads face of one Amazon operations system coordinated by `amazon-agent-orchestrator`. Product selection should feed candidate ASINs, margin assumptions, launch windows, and priority keywords into Ads. Ads should return search-term conversion, ACOS, CPC pressure, negative terms, and campaign viability back to Product and Listing so the three projects converge instead of duplicating decisions.
+
 ## Book Nook Route
 
 For Book Nook, booknook, book nook kit, DIY miniature bookshelf insert, or themed Book Nook products, prefer the dedicated `book-nook-ads-optimizer` skill and `scripts/book_nook_optimizer.py`. That route keeps reusable Book Nook category knowledge, theme profiles, Sorftime context, shared manual scope handling, and the default HTML/Campaign Build CSV/Pre-Negatives CSV/JSON output together.
